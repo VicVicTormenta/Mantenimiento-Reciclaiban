@@ -50,11 +50,11 @@ def cargar_datos_completos():
                     temp_df = pd.DataFrame({
                         'Equipo': nombre_hoja.upper(),
                         'Modo de Fallo': df[col_fallo] if col_fallo else "N/A",
-                        'Tarea Preventiva': df[col_tareas],
+                        'Tarea': df[col_tareas],
                         'Criticidad': df[col_crit] if col_crit else None,
-                        'Especialidad': df[col_esp] if col_esp else None,
-                        'Frecuencia': df[col_frec] if col_frec else None,
-                        'Formación': df[col_form] if col_form else None
+                        'Esp': df[col_esp] if col_esp else None,
+                        'F': df[col_frec] if col_frec else None,
+                        'Form': df[col_form] if col_form else None
                     })
 
                     # Rellenar celdas combinadas
@@ -123,4 +123,5 @@ if df is not None and not df.empty:
 
 else:
     st.warning("No se han encontrado datos. Verifica el archivo Excel en GitHub.")
+
 
