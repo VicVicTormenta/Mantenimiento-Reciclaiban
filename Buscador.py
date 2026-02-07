@@ -6,6 +6,7 @@ import glob
 st.set_page_config(page_title="RECICLAIBAN - Gestión", layout="wide")
 st.title("🛠️ Buscador de Mantenimiento - RECICLAIBAN")
 
+# Muestra la ruta de trabajo (en la nube verás algo como /mount/src/...)
 st.info(f"📂 **Ruta de trabajo:** `{os.getcwd()}`")
 
 def encontrar_cabecera(df_hoja):
@@ -37,12 +38,12 @@ def cargar_datos_completos():
                 # Limpiar nombres de columnas
                 df.columns = df.columns.astype(str).str.replace('\n', ' ').str.strip()
                 
-                # Mapeo de columnas incluyendo Modos de Fallo
+                # Mapeo de columnas
                 col_fallo = next((c for c in df.columns if "Modos" in c or "Fallo" in c), None)
                 col_tareas = next((c for c in df.columns if "Medidas" in c), None)
                 col_crit = next((c for c in df.columns if "Crit" in c or "idad" in c), None)
                 col_esp = next((c for c in df.columns if "Esp" in c or "E p" in c), None)
-                col_frec = next((c for c in df.columns if c.strip() == "F"), None)
+                col_frec = next((c for c in df.columns if c.strip() == "F" or "Periodicidad" in c), None)
                 col_form = next((c for c in df.columns if "Form" in c or "F o r m" in c), None)
 
                 if col_tareas:
@@ -56,56 +57,69 @@ def cargar_datos_completos():
                         'Form': df[col_form] if col_form else None
                     })
 
-                    # --- CORRECCIÓN DE CELDAS COMBINADAS ---
-                    # Ahora rellenamos también el Modo de Fallo hacia abajo
+                    # Rellenar celdas combinadas
                     cols_a_rellenar = ['Modo de Fallo', 'Criticidad', 'Esp', 'F', 'Form']
                     temp_df[cols_a_rellenar] = temp_df[cols_a_rellenar].ffill()
 
-                    # Eliminar filas sin tarea real
+                    # Limpieza de filas vacías y textos
                     temp_df = temp_df.dropna(subset=['Tarea'])
-                    
-                    # Limpieza de textos
                     for col in cols_a_rellenar:
                         temp_df[col] = temp_df[col].fillna("N/A").astype(str).str.strip()
                     
                     lista_total.append(temp_df)
         
-        return pd.concat(lista_total, ignore_index=True) if lista_total else pd.DataFrame(), archivo_real
+        if not lista_total:
+            return pd.DataFrame(), archivo_real
+            
+        return pd.concat(lista_total, ignore_index=True), archivo_real
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"Error al leer el Excel: {e}")
         return pd.DataFrame(), None
 
-# --- CARGA Y RENDER ---
+# --- CARGA ---
 df, nombre_fich = cargar_datos_completos()
 
 if df is not None and not df.empty:
-    st.success(f"✅ Datos cargados de: `{nombre_fich}`")
+    st.success(f"✅ Datos cargados con éxito")
     
-    # Buscador de texto
-    busqueda = st.text_input("🔍 Buscar por fallo o tarea (ej: 'patinaje', 'motor', 'aceite')...")
+    # 1. Buscador de texto
+    busqueda = st.text_input("🔍 Buscar por fallo o tarea...")
     
-    # Filtros laterales o en columnas
-    c1, c2, c3 = st.columns(3)
+    # 2. Configuración de filtros en 4 columnas
+    c1, c2, c3, c4 = st.columns(4)
     with c1:
-        esp_sel = st.multiselect("Especialista", sorted(df['Esp'].unique()), default=df['Esp'].unique())
+        esp_sel = st.multiselect("⚙️ Especialista", sorted(df['Esp'].unique()), default=df['Esp'].unique())
     with c2:
-        crit_sel = st.multiselect("Criticidad", sorted(df['Criticidad'].unique()), default=df['Criticidad'].unique())
+        # AQUÍ ESTÁ EL FILTRO DE PERIODICIDAD (F)
+        frec_sel = st.multiselect("📅 Periodicidad (F)", sorted(df['F'].unique()), default=df['F'].unique())
     with c3:
-        form_sel = st.radio("¿Formación?", ["Todos", "S", "N"], horizontal=True)
+        crit_sel = st.multiselect("⚠️ Criticidad", sorted(df['Criticidad'].unique()), default=df['Criticidad'].unique())
+    with c4:
+        form_sel = st.radio("🎓 ¿Formación?", ["Todos", "S", "N"], horizontal=True)
 
-    # Filtrado lógico
-    # Buscamos la palabra tanto en la Tarea como en el Modo de Fallo
+    # 3. Lógica de filtrado (Máscara)
+    # Filtro de texto
     mask = (df['Tarea'].str.contains(busqueda, case=False, na=False)) | \
            (df['Modo de Fallo'].str.contains(busqueda, case=False, na=False))
     
-    mask &= df['Esp'].isin(esp_sel) & df['Criticidad'].isin(crit_sel)
+    # Aplicar multiselects (incluyendo el de frecuencia F)
+    mask &= df['Esp'].isin(esp_sel) 
+    mask &= df['F'].isin(frec_sel) 
+    mask &= df['Criticidad'].isin(crit_sel)
     
+    # Filtro de radio button
     if form_sel != "Todos":
         mask &= (df['Form'] == form_sel)
 
-    # Mostrar tabla final
-    st.dataframe(df[mask], use_container_width=True, hide_index=True)
+    # 4. Mostrar resultados
+    df_filtrado = df[mask]
+    st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
     
-    st.caption(f"Mostrando {len(df[mask])} tareas de mantenimiento.")
+    st.caption(f"Mostrando {len(df_filtrado)} tareas de mantenimiento.")
+
+    # Botón extra para tu TFG: Descargar lo que se está viendo
+    csv = df_filtrado.to_csv(index=False).encode('utf-8-sig')
+    st.download_button("📥 Descargar esta selección (CSV)", csv, "plan_mantenimiento.csv", "text/csv")
+
 else:
-    st.warning("No se han encontrado datos. Comprueba que el Excel tenga la columna 'Modos de Fallo'.")
+    st.warning("No se han encontrado datos. Verifica el archivo Excel en GitHub.")
