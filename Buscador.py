@@ -112,9 +112,9 @@ if df is not None and not df.empty:
 
     # Diccionario de traducción para la vista del usuario
     titulos_nuevos = {
-        'Equipo': 'EQUIPO / ZONA',
+        'Equipo': 'EQUIPO',
         'Modo de Fallo': 'MODO DE FALLO',
-        'Tarea': 'DESCRIPCIÓN DE LA TAREA / MEDIDA PREVENTIVA',
+        'Tarea': 'MEDIDA PREVENTIVA',
         'Criticidad': 'CRITICIDAD',
         'Esp': 'ESPECIALISTA',
         'F': 'FREQ.',
@@ -134,3 +134,4 @@ if df is not None and not df.empty:
 
 else:
     st.warning("No se han encontrado datos. Verifica el archivo Excel en GitHub.")
+
