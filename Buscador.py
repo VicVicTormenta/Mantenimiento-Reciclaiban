@@ -6,7 +6,7 @@ import glob
 st.set_page_config(page_title="RECICLAIBAN - Gestión", layout="wide")
 st.title("🛠️ Buscador de Mantenimiento - RECICLAIBAN")
 
-# Muestra la ruta de trabajo (en la nube verás algo como /mount/src/...)
+# Muestra la ruta de trabajo
 st.info(f"📂 **Ruta de trabajo:** `{os.getcwd()}`")
 
 def encontrar_cabecera(df_hoja):
@@ -90,38 +90,47 @@ if df is not None and not df.empty:
     with c1:
         esp_sel = st.multiselect("⚙️ Especialista", sorted(df['Esp'].unique()), default=df['Esp'].unique())
     with c2:
-        # AQUÍ ESTÁ EL FILTRO DE PERIODICIDAD (F)
         frec_sel = st.multiselect("📅 Periodicidad (F)", sorted(df['F'].unique()), default=df['F'].unique())
     with c3:
         crit_sel = st.multiselect("⚠️ Criticidad", sorted(df['Criticidad'].unique()), default=df['Criticidad'].unique())
     with c4:
         form_sel = st.radio("🎓 ¿Formación?", ["Todos", "S", "N"], horizontal=True)
 
-    # 3. Lógica de filtrado (Máscara)
-    # Filtro de texto
+    # 3. Lógica de filtrado
     mask = (df['Tarea'].str.contains(busqueda, case=False, na=False)) | \
            (df['Modo de Fallo'].str.contains(busqueda, case=False, na=False))
     
-    # Aplicar multiselects (incluyendo el de frecuencia F)
     mask &= df['Esp'].isin(esp_sel) 
     mask &= df['F'].isin(frec_sel) 
     mask &= df['Criticidad'].isin(crit_sel)
     
-    # Filtro de radio button
     if form_sel != "Todos":
         mask &= (df['Form'] == form_sel)
 
-    # 4. Mostrar resultados
+    # 4. Mostrar resultados con NOMBRES DE COLUMNA MODIFICADOS
     df_filtrado = df[mask]
-    st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
+
+    # Diccionario de traducción para la vista del usuario
+    titulos_nuevos = {
+        'Equipo': 'EQUIPO / ZONA',
+        'Modo de Fallo': 'MODO DE FALLO',
+        'Tarea': 'DESCRIPCIÓN DE LA TAREA / MEDIDA PREVENTIVA',
+        'Criticidad': 'CRITICIDAD',
+        'Esp': 'ESPECIALISTA',
+        'F': 'FREQ.',
+        'Form': 'FORM.'
+    }
+    
+    # Creamos una copia para la vista con los nombres cambiados
+    df_vista = df_filtrado.rename(columns=titulos_nuevos)
+
+    st.dataframe(df_vista, use_container_width=True, hide_index=True)
     
     st.caption(f"Mostrando {len(df_filtrado)} tareas de mantenimiento.")
 
-    # Botón extra para tu TFG: Descargar lo que se está viendo
+    # Botón de descarga
     csv = df_filtrado.to_csv(index=False).encode('utf-8-sig')
     st.download_button("📥 Descargar esta selección (CSV)", csv, "plan_mantenimiento.csv", "text/csv")
 
 else:
     st.warning("No se han encontrado datos. Verifica el archivo Excel en GitHub.")
-
-
